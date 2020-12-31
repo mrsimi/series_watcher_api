@@ -1,3 +1,4 @@
+using System.Net;
 using System;
 using System.Collections.Generic;
 using System.Net.Http;
@@ -20,6 +21,7 @@ namespace Series_watcher.Implementation
             TMDB_KEY = _config.GetValue<string> ("TMDBKEY");
         }
         private readonly static string BASE_URL = "https://api.themoviedb.org/3/";
+        private static HttpClient client = new HttpClient();
 
         public string TMDB_KEY { get; private set; }
 
@@ -63,8 +65,8 @@ namespace Series_watcher.Implementation
             if (!string.IsNullOrEmpty (seriesTitle))
             {
                 string referenceUrl = $"search/tv?api_key={TMDB_KEY}&language=en-US&page=1&include_adult=false&query={seriesTitle.Replace(' ', '+')}";
-                using (var client = new HttpClient ())
-                {
+                // using (var client = new HttpClient ())
+                // {
                     client.BaseAddress = new System.Uri (BASE_URL);
                     HttpResponseMessage response = await client.GetAsync (referenceUrl);
                     if (response.IsSuccessStatusCode)
@@ -79,7 +81,7 @@ namespace Series_watcher.Implementation
                             }
                         }
                     }
-                }
+                //}
             }
             return 0;
         }
@@ -91,8 +93,8 @@ namespace Series_watcher.Implementation
             int index = random.Next (sort_bys.Length);
 
             string referenceUrl = $"discover/tv?api_key={TMDB_KEY}&language=en-US&sort_by={sort_bys[index]}&page=1&include_null_first_air_dates=false";
-            using (var client = new HttpClient ())
-            {
+            // using (var client = new HttpClient ())
+            // {
                 client.BaseAddress = new System.Uri (BASE_URL);
                 HttpResponseMessage response = await client.GetAsync (referenceUrl);
                 if (response.IsSuccessStatusCode)
@@ -100,7 +102,7 @@ namespace Series_watcher.Implementation
                     var deserializedResponse = JsonConvert.DeserializeObject<RecommendationResponse> (await response.Content.ReadAsStringAsync ());
                     return deserializedResponse.results;
                 }
-            }
+            //}
 
             return null;
         }

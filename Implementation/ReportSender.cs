@@ -1,6 +1,10 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading.Tasks;
+using Amazon;
+using Amazon.SimpleEmail;
+using Amazon.SimpleEmail.Model;
 using MailKit.Net.Smtp;
 using Microsoft.Extensions.Configuration;
 using MimeKit;
@@ -18,42 +22,58 @@ namespace Series_watcher.Implementation
             _configuration = configuration;
             ACCOUNT_SID = _configuration.GetValue<string> ("Twilio:AccountSid");
             AUTH_TOKEN = _configuration.GetValue<string> ("Twilio:AuthToken");
-            Email = _configuration.GetValue<string> ("Email");
-            Pass = _configuration.GetValue<string> ("Password");
-            PROVIDER = _configuration.GetValue<string> ("SmtpDetails:Provider");
-            PORT = _configuration.GetValue<int> ("SmtpDetails:Port");
+            SenderEmail = _configuration.GetValue<string> ("EmailDetails:Email");
+            AWSSESConfigurationSet = _configuration.GetValue<string> ("AwsSESConfigurationSet");
+            // Pass = _configuration.GetValue<string> ("EmailDetails:Password");
+            SECRET_KEY = _configuration.GetValue<string> ("AWSCredentials:SecretKey");
+            ACCESS_KEY = _configuration.GetValue<string> ("AWSCredentials:AccessKey");
         }
 
         public string ACCOUNT_SID { get; private set; }
         public string AUTH_TOKEN { get; private set; }
-        public string Email { get; private set; }
-        public string Pass { get; private set; }
-        public string PROVIDER { get; private set; }
-        public int PORT { get; private set; }
+        public string SenderEmail { get; private set; }
+        public string AWSSESConfigurationSet { get; private set; }
+        public string SECRET_KEY { get; private set; }
+        public string ACCESS_KEY { get; private set; }
 
-        public void SendEmail (string message, string recipientEmail)
+        public async Task< string> SendEmail (string message, string recipientEmail)
         {
-            var mimeMessage = new MimeMessage ();
-            mimeMessage.From.Add (new MailboxAddress ("Tv series watcher", Email));
-            mimeMessage.To.Add (new MailboxAddress ("Tv series Report", recipientEmail));
-
-            mimeMessage.Subject = $"Tv shows watcher report dated {DateTime.Now.ToLongDateString()}";
-            var body = new TextPart ("plain")
+            string EmailSubject = $"Tv shows watcher report dated {DateTime.Now.ToLongDateString()}";
+            var awsCredentials = new Amazon.Runtime.BasicAWSCredentials(ACCESS_KEY, SECRET_KEY);
+            using (var client = new AmazonSimpleEmailServiceClient (awsCredentials, RegionEndpoint.USWest2))
             {
-                Text = message
-            };
+                var sendRequest = new SendEmailRequest
+                {
+                    Source = SenderEmail,
+                    Destination = new Destination
+                    {
+                        ToAddresses = new List<string> { recipientEmail }
+                    },
+                    Message = new Message
+                    {
+                        Subject = new Content (EmailSubject),
+                        Body = new Body
+                        {
+                            Text = new Content
+                            {
+                                Charset = "UTF-8",
+                                Data = message
+                            }
+                        }
+                    },
+                    ConfigurationSetName = "WatcherAPI_Config"
+                };
 
-            mimeMessage.Body = body;
-
-            using (var client = new SmtpClient ())
-            {
-                client.Connect (PROVIDER, PORT, false);
-                client.Authenticate (Email, Pass);
-                client.Send (mimeMessage);
-                client.Disconnect (true);
+                try
+                {
+                    var response = await client.SendEmailAsync(sendRequest);
+                    return "The Report was sent to the email was sent successfully";
+                }
+                catch(Exception ex)
+                {
+                    return "There was an error "+ex.Message;
+                }
             }
-
-            //throw new NotImplementedException ();
         }
 
         public Dictionary<string, string> SendReport (string report, string recipientNumber)
@@ -74,7 +94,7 @@ namespace Series_watcher.Implementation
                 var message = MessageResource.Create (
                     body: item.ToString (),
                     from: new Twilio.Types.PhoneNumber ("whatsapp:+14155238886"),
-                    to : new Twilio.Types.PhoneNumber ($"whatsapp:{recipientNumber}")
+                    to : new Twilio.Types.PhoneNumber ($"whatsapp:+{recipientNumber}")
                 );
 
                 MessageStatus.Add (item.ToString ().Substring (0, 2), message.Status.ToString ());

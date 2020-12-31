@@ -22,7 +22,7 @@ namespace Series_watcher.Controllers
         [HttpGet ()]
         public async Task<IActionResult> GetSeriesReport ([FromQuery] string recieverNumber, [FromQuery] string recieverEmail)
         {
-            if (string.IsNullOrEmpty(recieverEmail) && string.IsNullOrEmpty(recieverNumber))
+            if (string.IsNullOrEmpty (recieverEmail) && string.IsNullOrEmpty (recieverNumber))
             {
                 return BadRequest ("Check your input in the route");
             }
@@ -34,8 +34,8 @@ namespace Series_watcher.Controllers
 
             if (!string.IsNullOrEmpty (recieverEmail))
             {
-                _reportSender.SendEmail (report, recieverEmail);
-                return Ok ();
+                var response = await _reportSender.SendEmail (report, recieverEmail);
+                return Ok ("Series Result: "+ seriesResult.Count+" Recommendatitons: "+ recommendationResult.Count +"\n" +report);
             }
             var messageStatus = _reportSender.SendReport (report, recieverNumber);
 

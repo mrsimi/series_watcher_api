@@ -11,11 +11,12 @@ namespace Series_watcher.Implementation
 {
     public class SeriesRunner : ISeriesRunner
     {
-        private readonly SeriesDbContext _context;
+      //  private readonly SeriesDbContext _context;
         private readonly ISeriesQuerier _seriesQuerier;
-        public SeriesRunner (SeriesDbContext context, ISeriesQuerier seriesQuerier)
+        private static readonly List<TvSeriesListing> _tvSeriesListing = new List<TvSeriesListing>();
+        public SeriesRunner (ISeriesQuerier seriesQuerier)
         {
-            _context = context;
+          //  _context = context;
             _seriesQuerier = seriesQuerier;
 
             var tvlisting = new List<TvSeriesListing> ()
@@ -70,32 +71,26 @@ namespace Series_watcher.Implementation
                 },
                 new TvSeriesListing
                 {
-                    SeriesTitle = "MacGyver",
-                    LastEpisode = 2,
-                    CurrentSeason = 6
+                SeriesTitle = "MacGyver",
+                LastEpisode = 2,
+                CurrentSeason = 6
                 },
                 new TvSeriesListing
                 {
-                    SeriesTitle = "Magnum P.I.",
-                    LastEpisode = 3,
-                    CurrentSeason = 3
+                SeriesTitle = "Magnum P.I.",
+                LastEpisode = 3,
+                CurrentSeason = 3
                 },
             };
 
-            var alltv = from c in _context.TvseriesListings select c;
+            _tvSeriesListing.AddRange(tvlisting);
 
-            if (tvlisting.Count != alltv.Count ())
-            {
-                _context.RemoveRange (alltv);
-                _context.AddRange (tvlisting);
-                _context.SaveChanges ();
-            }
         }
         public async Task<List<TvSeriesDTO>> GetAvailiabilityStatus ()
         {
-            var ids = await GetExternalSeriesId ();
+            var allSeries = await GetExternalSeriesId ();
 
-            var allSeries = _context.TvseriesListings.ToList ();
+           // var allSeries = _context.TvseriesListings.ToList ();
             List<TvSeriesDTO> seriesDTOs = new List<TvSeriesDTO> ();
 
             foreach (var series in allSeries)
@@ -124,7 +119,7 @@ namespace Series_watcher.Implementation
                                 series.NewEpisode = details[0].episode_number;
                                 series.LastEpisodeAirDate = string.IsNullOrEmpty (details[0].air_date) ? DateTime.Now.AddDays (20) : DateTime.Parse (details[0].air_date);
 
-                                _context.Update (series);
+                               // _context.Update (series);
 
                                 var seriesToSave = new TvSeriesDTO
                                 {
@@ -135,12 +130,11 @@ namespace Series_watcher.Implementation
                                     LastEpisodeAirDate = series.LastEpisodeAirDate,
                                     NewEpisodeAirDate = series.NewEpisodeAirDate,
                                 };
-                                
-                                if(seriesToSave.LastEpisodeAirDate.Value.Subtract(DateTime.Now).Days <= 0)
+
+                                if (seriesToSave.LastEpisodeAirDate.Value.Subtract (DateTime.Now).Days <= 0)
                                 {
                                     seriesToSave.HasCurrentSeasonEnded = true;
                                 }
-                               
 
                                 seriesDTOs.Add (seriesToSave);
                             }
@@ -148,10 +142,10 @@ namespace Series_watcher.Implementation
                             {
                                 series.LastEpisode = details[0].episode_number;
                                 series.NewEpisode = details[1].episode_number;
-                                series.LastEpisodeAirDate = string.IsNullOrEmpty (details[0].air_date) ? DateTime.Now.AddDays (20)  : DateTime.Parse (details[0].air_date);
+                                series.LastEpisodeAirDate = string.IsNullOrEmpty (details[0].air_date) ? DateTime.Now.AddDays (20) : DateTime.Parse (details[0].air_date);
                                 series.NewEpisodeAirDate = string.IsNullOrEmpty (details[1].air_date) ? DateTime.Now.AddDays (40) : DateTime.Parse (details[1].air_date);
 
-                                _context.Update (series);
+                               // _context.Update (series);
 
                                 var seriesToSave = new TvSeriesDTO
                                 {
@@ -170,16 +164,16 @@ namespace Series_watcher.Implementation
                     //}
                 }
             }
-
-            _context.SaveChanges ();
+            //write to csv files
+          //  _context.SaveChanges ();
 
             return seriesDTOs;
         }
 
         public async Task<List<TvSeriesListing>> GetExternalSeriesId ()
         {
-            var allSeries = _context.TvseriesListings.ToList ();
-
+            //read csv file
+            var allSeries = _tvSeriesListing;
             foreach (var series in allSeries)
             {
                 if (series.ExternalSeriesId == 0)
@@ -193,7 +187,7 @@ namespace Series_watcher.Implementation
                 }
             }
 
-            await _context.SaveChangesAsync ();
+            // await _context.SaveChangesAsync ();
 
             return allSeries;
         }
@@ -204,26 +198,27 @@ namespace Series_watcher.Implementation
             var seriesList = await _seriesQuerier.GetTvShowsRecommendations ();
             if (seriesList != null)
             {
-                var previousRecommendations = _context.TvSeriesRecommendations.Select (m => m.SeriesTitle).ToList ();
+               // var previousRecommendations = _context.TvSeriesRecommendations.Select (m => m.SeriesTitle).ToList ();
                 foreach (var series in seriesList)
                 {
-                    if (!previousRecommendations.Contains (series.name))
+                    seriesRecommendations.Add (new SeriesRecommendation
                     {
-                        seriesRecommendations.Add (new SeriesRecommendation
-                        {
-                            Name = series.name,
-                                Date = series.first_air_date,
-                                Overview = series.overview,
-                                Picture = series.backdrop_path != null? series.backdrop_path : series.poster_path
-                        });
+                        Name = series.name,
+                        Date = series.first_air_date,
+                        Overview = series.overview,
+                        Picture = series.backdrop_path != null? series.backdrop_path : series.poster_path
+                    });
 
-                        _context.TvSeriesRecommendations.Add (new TvSeriesRecommendation
-                        {
-                            SeriesTitle = series.name
-                        });
-                    }
+                    // if (!previousRecommendations.Contains (series.name))
+                    // {
+                        
+                    //     _context.TvSeriesRecommendations.Add (new TvSeriesRecommendation
+                    //     {
+                    //         SeriesTitle = series.name
+                    //     });
+                    // }
 
-                    _context.SaveChanges ();
+                  //  _context.SaveChanges ();
 
                     if (seriesRecommendations.Count == 5)
                     {
